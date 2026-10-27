@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>🏀 奇幻神射手！籃球大冒險</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
+
+        /* iPad 觸控防護與無障礙體驗優化 */
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            touch-action: manipulation;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: #000000;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+        }
+
+        /* 遊戲舞台容器 */
+        #game-stage {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            transition: background-color 0.3s ease;
+        }
+
+        /* 第一關：拍球彈跳動畫 */
+        @keyframes cviBounce {
+            0% { transform: scale(1); }
+            40% { transform: scale(1.38); }
+            70% { transform: scale(0.88); }
+            100% { transform: scale(1); }
+        }
+
+        /* 第二關：定點投籃拋物線動畫 */
+        @keyframes cviShootArc {
+            0% {
+                transform: translate(-50%, 0) scale(1) rotate(0deg);
+            }
+            30% {
+                transform: translate(-50%, -30vh) scale(0.85) rotate(120deg);
+            }
+            75% {
+                transform: translate(-50%, -58vh) scale(0.65) rotate(300deg);
+            }
+            100% {
+                transform: translate(-50%, -55vh) scale(0.55) rotate(360deg);
+            }
+        }
+
+        /* 籃網進球刷網震動動畫 */
+        @keyframes netSwish {
+            0% { transform: scale(1, 1); }
+            25% { transform: scale(1.35, 0.75) translateY(8px); }
+            50% { transform: scale(0.82, 1.28) translateY(-5px); }
+            75% { transform: scale(1.12, 0.9); }
+            100% { transform: scale(1, 1); }
+        }
+
+        /* CVI 高對比發光脈衝 (視覺提示) */
+        @keyframes cviPulse {
+            0%, 100% { filter: drop-shadow(0 0 18px rgba(255, 230, 0, 0.85)); }
+            50% { filter: drop-shadow(0 0 42px rgba(255, 230, 0, 1)); }
+        }
+
+        .anim-bounce {
+            animation: cviBounce 0.52s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+        }
+
+        .anim-shoot {
+            animation: cviShootArc 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards !important;
+        }
+
+        .anim-net-swish {
+            animation: netSwish 0.68s ease-in-out !important;
+            transform-origin: top center;
+        }
+
+        .cvi-glow {
+            animation: cviPulse 1.8s infinite ease-in-out;
+        }
+
+        /* 眼動注視倒數環 SVG 進度條 */
+        .progress-ring-circle {
+            transition: stroke-dashoffset 0.03s linear;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+
+        /* 設定與結算面板毛玻璃質感 (iPad 滾動優化) */
+        .glass-panel {
+            background: rgba(15, 15, 22, 0.96);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .glass-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+        .glass-panel::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+        }
+
+        /* iPad 觸控專用加減按鈕與輸入樣式 */
+        .touch-step-btn {
+            min-width: 48px;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            font-weight: 800;
+            border-radius: 0.75rem;
+            background-color: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: #FFFFFF;
+            transition: all 0.15s ease;
+        }
+        .touch-step-btn:active {
+            background-color: rgba(255, 215, 0, 0.8);
+            color: #000000;
+            transform: scale(0.94);
+        }
+    </style>
+</head>
+<body class="bg-black text-white antialiased">
+
+    <div id="app" class="w-full h-full relative">
+
+        <!-- ⚙️ CVI 教師/家長控制面板 (iPad 觸控最佳化設定選單) -->
+        <div id="settings-modal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-sm">
+            <div class="glass-panel w-full max-w-2xl rounded-3xl p-5 md:p-8 max-h-[94vh] overflow-y-auto shadow-2xl text-white">
+                
+                <!-- 選單標題列 -->
+                <div class="flex justify-between items-center mb-5 border-b border-gray-700/80 pb-4">
+                    <div>
+                        <h1 class="text-xl sm:text-2xl md:text-3xl font-extrabold text-yellow-400 flex items-center gap-2">
+                            <span>🏀</span> 奇幻神射手！籃球大冒險
+                        </h1>
+                        <p class="text-xs text-gray-300 mt-1">iPad 觸控與眼動儀最佳化 ‧ CVI 高對比視知覺輔具</p>
+                    </div>
+                    <button onclick="closeSettings()" class="min-h-[48px] min-w-[48px] bg-gray-800 hover:bg-gray-700 active:bg-yellow-400 active:text-black text-yellow-400 font-extrabold px-4 py-2 rounded-2xl text-sm transition border border-gray-600 flex items-center justify-center">
+                        ✕ 關閉
+                    </button>
+                </div>
+
+                <div class="space-y-6">
+                    <!-- 1. CVI 快速高對比背景顏色按鈕 -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-200 mb-2">1. CVI 高對比背景顏色</label>
+                        <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                            <button onclick="setBg('#000000')" class="min-h-[48px] rounded-2xl bg-black border-2 border-white/80 active:scale-95 transition font-bold text-xs text-white">#000000<br>純黑</button>
+                            <button onclick="setBg('#FF0000')" class="min-h-[48px] rounded-2xl bg-red-600 border-2 border-white/80 active:scale-95 transition font-bold text-xs text-white">#FF0000<br>純紅</button>
+                            <button onclick="setBg('#FFFF00')" class="min-h-[48px] rounded-2xl bg-yellow-400 text-black border-2 border-black/80 active:scale-95 transition font-bold text-xs">#FFFF00<br>純黃</button>
+                            <button onclick="setBg('#001F3F')" class="min-h-[48px] rounded-2xl bg-blue-950 border-2 border-white/80 active:scale-95 transition font-bold text-xs text-white">#001F3F<br>深藍</button>
+                            <button onclick="setBg('#FFFFFF')" class="min-h-[48px] rounded-2xl bg-white text-black border-2 border-gray-400 active:scale-95 transition font-bold text-xs">#FFFFFF<br>純白</button>
+                            <label class="min-h-[48px] rounded-2xl border-2 border-dashed border-gray-400 flex items-center justify-center cursor-pointer hover:bg-gray-800 active:bg-gray-700 transition">
+                                <span class="text-xs text-gray-200 font-bold">🎨 自訂色</span>
+                                <input type="color" id="customBgPicker" class="opacity-0 absolute w-0 h-0" onchange="setBg(this.value)">
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 2. iPad 相簿背景圖片上傳 -->
+                    <div class="bg-gray-900/90 p-4 rounded-2xl border border-gray-800">
+                        <label class="block text-sm font-semibold text-gray-200 mb-2 flex items-center justify-between">
+                            <span>2. iPad 背景圖片</span>
+                            <span id="bgImgStatus" class="text-xs text-yellow-400 font-bold">使用純色背景中</span>
+                        </label>
+                        <div class="flex flex-col sm:flex-row items-center gap-3">
+                            <label class="w-full sm:w-auto min-h-[48px] px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold text-sm cursor-pointer text-center transition shadow-md flex items-center justify-center gap-2">
+                                <span>🖼️</span> 從 iPad 照片選取圖片
+                                <input type="file" id="bgFileInput" accept="image/*" class="hidden" onchange="handleBgImageUpload(event)">
+                            </label>
+                            <button id="removeBgImgBtn" onclick="removeBgImage()" class="w-full sm:w-auto min-h-[48px] px-5 py-3 rounded-2xl bg-red-950/80 hover:bg-red-900 text-red-200 border border-red-800 font-bold text-xs transition hidden flex items-center justify-center">
+                                🗑️ 移除圖片 (恢復純色)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 3. 籃球圖案樣式 -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-200 mb-2">3. 籃球圖案樣式</label>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <button onclick="setBallStyle('classic')" class="min-h-[56px] p-2 rounded-2xl border border-gray-700 bg-gray-800/80 hover:border-yellow-400 active:bg-yellow-400 active:text-black flex items-center justify-center gap-2 transition">
+                                <span class="text-2xl">🏀</span>
+                                <span class="text-xs font-bold">經典籃球</span>
+                            </button>
+                            <button onclick="setBallStyle('red')" class="min-h-[56px] p-2 rounded-2xl border border-gray-700 bg-gray-800/80 hover:border-yellow-400 active:bg-yellow-400 active:text-black flex items-center justify-center gap-2 transition">
+                                <span class="text-2xl">🔴</span>
+                                <span class="text-xs font-bold">高對比紅色</span>
+                            </button>
+                            <button onclick="setBallStyle('yellow')" class="min-h-[56px] p-2 rounded-2xl border border-gray-700 bg-gray-800/80 hover:border-yellow-400 active:bg-yellow-400 active:text-black flex items-center justify-center gap-2 transition">
+                                <span class="text-2xl">🟡</span>
+                                <span class="text-xs font-bold">高對比黃色</span>
+                            </button>
+                            <button onclick="setBallStyle('glow')" class="min-h-[56px] p-2 rounded-2xl border border-gray-700 bg-gray-800/80 hover:border-yellow-400 active:bg-yellow-400 active:text-black flex items-center justify-center gap-2 transition">
+                                <span class="text-2xl filter drop-shadow-[0_0_8px_rgba(255,165,0,0.9)]">🏀</span>
+                                <span class="text-xs font-bold">發光籃球</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 4. 觸控調控面板 (配備大顆 [+] [-] 按鈕) -->
+                    <div class="space-y-4 bg-gray-900/90 p-4 rounded-2xl border border-gray-800">
+                        
+                        <!-- 遊戲時間 -->
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-800 pb-3">
+                            <label class="text-sm font-semibold text-gray-200">4. 每關遊戲時間</label>
+                            <select id="timeLimitSelect" class="min-h-[48px] bg-gray-800 border border-gray-600 text-yellow-400 font-bold rounded-2xl px-4 py-2 text-sm focus:outline-none focus:border-yellow-400" onchange="updateTimeLimit(this.value)">
+                                <option value="0">無限時 (自由練習)</option>
+                                <option value="15">15 秒 (快速挑戰)</option>
+                                <option value="30" selected>30 秒 (標準練習)</option>
+                                <option value="60">60 秒 (進階專注)</option>
+                                <option value="90">90 秒</option>
+                                <option value="120">120 秒 (長時訓練)</option>
+                            </select>
+                        </div>
+
+                        <!-- 眼動注視時間 (0.1s - 5.0s，配備加減按鈕) -->
+                        <div class="border-b border-gray-800 pb-3">
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="text-sm font-semibold text-gray-200">5. 眼動注視時間 (Dwell Time)</label>
+                                <span id="dwellVal" class="text-yellow-400 font-extrabold text-base">1.5 秒</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <button type="button" onclick="stepDwell(-0.1)" class="touch-step-btn">－</button>
+                                <input type="range" id="dwellInput" min="0.1" max="5.0" step="0.1" value="1.5" class="w-full accent-yellow-400 h-3 cursor-pointer" oninput="updateDwellTime(this.value)">
+                                <button type="button" onclick="stepDwell(0.1)" class="touch-step-btn">＋</button>
+                            </div>
+                        </div>
+
+                        <!-- 籃球尺寸 (80px - 450px，配備加減按鈕) -->
+                        <div class="border-b border-gray-800 pb-3">
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="text-sm font-semibold text-gray-200">6. 籃球尺寸</label>
+                                <span id="ballSizeVal" class="text-yellow-400 font-extrabold text-base">180 px</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <button type="button" onclick="stepBallSize(-10)" class="touch-step-btn">－</button>
+                                <input type="range" id="ballSizeInput" min="80" max="450" step="10" value="180" class="w-full accent-yellow-400 h-3 cursor-pointer" oninput="updateBallSize(this.value)">
+                                <button type="button" onclick="stepBallSize(10)" class="touch-step-btn">＋</button>
+                            </div>
+                        </div>
+
+                        <!-- 第三關擺動速度 (1.0s - 7.0s，配備加減按鈕) -->
+                        <div class="border-b border-gray-800 pb-3">
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="text-sm font-semibold text-gray-200">7. 第三關擺動速度</label>
+                                <span id="moveSpeedVal" class="text-yellow-400 font-extrabold text-base">適中 (3.0s)</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <button type="button" onclick="stepMoveSpeed(-0.5)" class="touch-step-btn">⚡ 快</button>
+                                <input type="range" id="moveSpeedInput" min="1.0" max="7.0" step="0.5" value="3.0" class="w-full accent-yellow-400 h-3 cursor-pointer" oninput="updateMoveSpeed(this.value)">
+                                <button type="button" onclick="stepMoveSpeed(0.5)" class="touch-step-btn">🐢 慢</button>
+                            </div>
+                        </div>
+
+                        <!-- 音量大小 (0% - 100%，配備加減按鈕) -->
+                        <div class="border-b border-gray-800 pb-3">
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="text-sm font-semibold text-gray-200">8. 遊戲音量</label>
+                                <span id="volumeVal" class="text-yellow-400 font-extrabold text-base">80%</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <button type="button" onclick="stepVolume(-5)" class="touch-step-btn">🔈</button>
+                                <input type="range" id="volumeInput" min="0" max="100" step="5" value="80" class="w-full accent-yellow-400 h-3 cursor-pointer" oninput="updateVolume(this.value)">
+                                <button type="button" onclick="stepVolume(5)" class="touch-step-btn">🔊</button>
+                            </div>
+                        </div>
+
+                        <!-- 注視進度環 Toggle -->
+                        <div class="flex items-center justify-between pt-1">
+                            <label class="text-sm font-semibold text-gray-200">顯示眼動注視倒數環</label>
+                            <input type="checkbox" id="showRingToggle" checked class="w-7 h-7 accent-yellow-400 rounded cursor-pointer" onchange="toggleRing(this.checked)">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 關卡選擇按鈕區 -->
+                <div class="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <button onclick="launchLevel(1)" class="min-h-[56px] py-3.5 px-4 rounded-2xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 font-extrabold text-base shadow-lg transition text-center flex items-center justify-center gap-2">
+                        <span>🏀</span> 第一關：原地拍球
+                    </button>
+                    <button onclick="launchLevel(2)" class="min-h-[56px] py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-400 active:bg-amber-600 font-extrabold text-base shadow-lg transition text-center flex items-center justify-center gap-2 text-black">
+                        <span>GI</span> 第二關：靜態投籃
+                    </button>
+                    <button onclick="launchLevel(3)" class="min-h-[56px] py-3.5 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 font-extrabold text-base shadow-lg transition text-center flex items-center justify-center gap-2 text-black">
+                        <span>⚡</span> 第三關：擺動投籃
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🎉 遊戲時間結束結算面板 -->
+        <div id="settlement-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md hidden">
+            <div class="glass-panel w-full max-w-md rounded-3xl p-8 text-center shadow-2xl border-2 border-yellow-400/60">
+                <div class="text-6xl mb-3">🎉</div>
+                <h2 class="text-3xl font-black text-yellow-400 mb-2">時間到！挑戰完成</h2>
+                <p id="settlementLevelText" class="text-gray-300 text-sm font-semibold mb-6">第一關：原地拍球</p>
+
+                <!-- 成績顯示卡片 -->
+                <div class="bg-gray-900/90 border border-yellow-500/40 rounded-2xl p-6 mb-8 shadow-inner">
+                    <p class="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">成功投進 / 拍球數</p>
+                    <div id="settlementScore" class="text-6xl font-black text-yellow-400 tracking-tight">0</div>
+                    <p class="text-xs text-gray-400 mt-2">太棒了！繼續加油！</p>
+                </div>
+
+                <div class="flex flex-col gap-3">
+                    <button onclick="restartCurrentLevel()" class="min-h-[52px] w-full py-3.5 rounded-2xl bg-yellow-400 hover:bg-yellow-300 active:bg-yellow-500 text-black font-extrabold text-lg shadow-xl transition">
+                        🔄 再玩一次
+                    </button>
+                    <button onclick="openSettings()" class="min-h-[52px] w-full py-3 rounded-2xl bg-gray-800 hover:bg-gray-700 active:bg-gray-900 text-gray-200 font-bold text-base border border-gray-600 transition">
+                        ⚙️ 回設定選單
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🎮 遊戲主要螢幕舞台 -->
+        <div id="game-stage">
+            
+            <!-- 頂部 HUD 狀態資訊列 -->
+            <div id="hud-bar" class="absolute top-4 left-4 right-4 z-40 flex justify-between items-center pointer-events-none">
+                <!-- 關卡與數據標籤 -->
+                <div class="flex items-center gap-2 sm:gap-3 pointer-events-auto">
+                    <div class="bg-black/80 border-2 border-yellow-400/80 text-white px-4 py-2 rounded-full font-black text-xs sm:text-sm md:text-base shadow-xl flex items-center gap-2">
+                        <span id="levelIndicatorText" class="text-yellow-400">第一關：原地拍球</span>
+                    </div>
+
+                    <!-- 計時器 HUD -->
+                    <div id="timerHud" class="bg-black/80 border-2 border-red-500/80 text-red-400 px-3.5 py-2 rounded-full font-black text-xs sm:text-sm md:text-base shadow-xl flex items-center gap-1.5">
+                        <span>⏳</span> <span id="timerText">30s</span>
+                    </div>
+
+                    <!-- 計數器 HUD -->
+                    <div class="bg-black/80 border-2 border-green-400/80 text-green-400 px-3.5 py-2 rounded-full font-black text-xs sm:text-sm md:text-base shadow-xl flex items-center gap-1.5">
+                        <span>🏀</span> <span id="scoreText">0 次</span>
+                    </div>
+                </div>
+                
+                <!-- 控制按鈕列 -->
+                <div class="flex gap-2 pointer-events-auto">
+                    <button onclick="openSettings()" class="min-h-[44px] bg-yellow-400 hover:bg-yellow-300 active:bg-yellow-500 text-black px-4 py-2 rounded-full font-extrabold text-xs sm:text-sm shadow-xl transition flex items-center justify-center">
+                        ⚙️ 設定
+                    </button>
+                </div>
+            </div>
+
+            <!-- 高對比立體 SVG 籃球架 -->
+            <div id="hoop-container" class="absolute top-[8%] left-1/2 -translate-x-1/2 z-10 transition-all duration-300 hidden">
+                <div class="relative w-[280px] h-[220px] md:w-[360px] md:h-[280px] flex items-center justify-center">
+                    
+                    <svg viewBox="0 0 300 240" class="w-full h-full drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]">
+                        <!-- 金屬支架 -->
+                        <path d="M 150,20 L 150,0 M 150,20 L 100,0 M 150,20 L 200,0" stroke="#888888" stroke-width="6" stroke-linecap="round"/>
+                        
+                        <!-- 籃球背板 -->
+                        <rect x="25" y="20" width="250" height="150" rx="12" fill="rgba(10, 10, 15, 0.9)" stroke="#FFFFFF" stroke-width="10" />
+                        <!-- 背板內框 -->
+                        <rect x="100" y="80" width="100" height="70" rx="4" fill="none" stroke="#FF0000" stroke-width="8" />
+                        <rect x="104" y="84" width="92" height="62" rx="2" fill="none" stroke="#FFFF00" stroke-width="3" />
+
+                        <!-- 籃框支架 -->
+                        <rect x="135" y="148" width="30" height="12" fill="#E65100" />
+
+                        <!-- 籃網 (Swish Animated Group) -->
+                        <g id="svg-net-group" class="transition-transform duration-200">
+                            <path d="
+                                M 115,160 L 125,220 L 150,230 L 175,220 L 185,160
+                                M 125,160 L 135,225 L 165,225 L 175,160
+                                M 135,160 L 150,230 L 165,160
+                                M 118,175 L 182,175
+                                M 121,190 L 179,190
+                                M 124,205 L 176,205
+                            " fill="none" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+                        </g>
+
+                        <!-- 籃框 Rim -->
+                        <ellipse cx="150" cy="160" rx="42" ry="10" fill="none" stroke="#FF3D00" stroke-width="12" filter="drop-shadow(0 0 8px #FF3D00)" />
+                        <ellipse cx="150" cy="160" rx="42" ry="10" fill="none" stroke="#FFFF00" stroke-width="3" />
+                    </svg>
+
+                </div>
+            </div>
+
+            <!-- 🏀 籃球主體與眼動倒數環容器 -->
+            <div id="ball-container" class="absolute cursor-pointer touch-none select-none z-20">
+                
+                <!-- 眼動儀注視倒數 SVG 圓環 -->
+                <svg id="dwell-svg" class="absolute inset-0 w-full h-full pointer-events-none z-30 hidden" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="6" />
+                    <circle id="dwell-progress" class="progress-ring-circle" cx="50" cy="50" r="46" fill="none" stroke="#FFD700" stroke-width="8" stroke-dasharray="289" stroke-dashoffset="289" stroke-linecap="round" />
+                </svg>
+
+                <!-- 籃球本體元素 -->
+                <div id="ball-element" class="w-full h-full flex items-center justify-center rounded-full transition-transform duration-100">
+                    <span id="ball-icon" class="text-[100px] leading-none select-none filter drop-shadow-lg">🏀</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. 全域狀態與 CVI 設定預設值
+        // ==========================================
+        let config = {
+            bgColor: '#000000',
+            bgImage: null,
+            ballSize: 180,
+            dwellTime: 1.5, // 最低可至 0.1s
+            moveSpeed: 3.0,
+            timeLimit: 30, // 秒數
+            ballStyle: 'classic',
+            volume: 0.8,
+            showRing: true
+        };
+
+        let gameState = {
+            currentLevel: 1,
+            isAnimating: false,
+            isTimerActive: false,
+            remainingSeconds: 30,
+            score: 0,
+            
+            dwellTimer: null,
+            dwellAnimFrame: null,
+            dwellStartTime: 0,
+            gameCountdownInterval: null,
+            
+            // 第三關動態擺動狀態
+            moveLoopFrame: null,
+            moveStartTime: 0,
+            currentBallPercentX: 50
+        };
+
+        // DOM 元素快取
+        const settingsModal = document.getElementById('settings-modal');
+        const settlementModal = document.getElementById('settlement-modal');
+        const gameStage = document.getElementById('game-stage');
+        const ballContainer = document.getElementById('ball-container');
+        const ballElement = document.getElementById('ball-element');
+        const ballIcon = document.getElementById('ball-icon');
+        const hoopContainer = document.getElementById('hoop-container');
+        const svgNetGroup = document.getElementById('svg-net-group');
+        const dwellSvg = document.getElementById('dwell-svg');
+        const dwellProgress = document.getElementById('dwell-progress');
+        const levelIndicatorText = document.getElementById('levelIndicatorText');
+        const timerText = document.getElementById('timerText');
+        const scoreText = document.getElementById('scoreText');
+        const bgImgStatus = document.getElementById('bgImgStatus');
+        const removeBgImgBtn = document.getElementById('removeBgImgBtn');
+
+        // ==========================================
+        // 2. Web Audio API 音效產生器
+        // ==========================================
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // 拍球低音
+        function playBounceSound() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(170, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(35, audioCtx.currentTime + 0.22);
+
+            const vol = config.volume;
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.22);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.22);
+        }
+
+        // 進籃刷網聲
+        function playSwishSound() {
+            if (!audioCtx) return;
+            const bufferSize = audioCtx.sampleRate * 0.25;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(1200, audioCtx.currentTime);
+            filter.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.25);
+            filter.Q.value = 3;
+
+            const gain = audioCtx.createGain();
+            const vol = config.volume * 0.85;
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            noise.start();
+        }
+
+        // 勝利歡呼聲
+        function playFanfareSound() {
+            if (!audioCtx) return;
+            const notes = [261.63, 329.63, 392.00, 523.25, 659.25];
+            notes.forEach((freq, index) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.value = freq;
+
+                const startTime = audioCtx.currentTime + index * 0.09;
+                const duration = 0.5;
+                const vol = config.volume * 0.6;
+
+                gain.gain.setValueAtTime(0, startTime);
+                gain.gain.linearRampToValueAtTime(vol, startTime + 0.04);
+                gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(startTime);
+                osc.stop(startTime + duration);
+            });
+        }
+
+        // ==========================================
+        // 3. iPad 觸控快捷加減與設定選單邏輯
+        // ==========================================
+        function setBg(color) {
+            config.bgColor = color;
+            config.bgImage = null;
+            updateBackgroundUI();
+            saveSettings();
+        }
+
+        // iPad 照片圖檔壓縮上傳（防 LocalStorage 額度溢出）
+        function handleBgImageUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const maxDim = 1280;
+                    let w = img.width;
+                    let h = img.height;
+                    if (w > maxDim || h > maxDim) {
+                        if (w > h) {
+                            h = Math.round((h * maxDim) / w);
+                            w = maxDim;
+                        } else {
+                            w = Math.round((w * maxDim) / h);
+                            h = maxDim;
+                        }
+                    }
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    
+                    const compressedBase64 = canvas.toDataURL('image/jpeg', 0.82);
+                    config.bgImage = compressedBase64;
+                    updateBackgroundUI();
+                    saveSettings();
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeBgImage() {
+            config.bgImage = null;
+            document.getElementById('bgFileInput').value = '';
+            updateBackgroundUI();
+            saveSettings();
+        }
+
+        function updateBackgroundUI() {
+            if (config.bgImage) {
+                gameStage.style.backgroundImage = `url('${config.bgImage}')`;
+                bgImgStatus.innerText = "已使用 iPad 自訂圖片";
+                bgImgStatus.className = "text-xs text-green-400 font-bold";
+                removeBgImgBtn.classList.remove('hidden');
+            } else {
+                gameStage.style.backgroundImage = 'none';
+                gameStage.style.backgroundColor = config.bgColor;
+                bgImgStatus.innerText = "使用純色背景中";
+                bgImgStatus.className = "text-xs text-yellow-400 font-normal";
+                removeBgImgBtn.classList.add('hidden');
+            }
+        }
+
+        function setBallStyle(style) {
+            config.ballStyle = style;
+            ballElement.className = 'w-full h-full flex items-center justify-center rounded-full transition-transform duration-100';
+            
+            if (style === 'classic') {
+                ballIcon.innerHTML = '🏀';
+            } else if (style === 'red') {
+                ballIcon.innerHTML = '🔴';
+            } else if (style === 'yellow') {
+                ballIcon.innerHTML = '🟡';
+            } else if (style === 'glow') {
+                ballIcon.innerHTML = '🏀';
+                ballElement.classList.add('cvi-glow');
+            }
+            saveSettings();
+        }
+
+        function updateTimeLimit(val) {
+            config.timeLimit = parseInt(val);
+            saveSettings();
+        }
+
+        // === 快捷 [+] [-] 加減按鈕處理 ===
+        function stepDwell(delta) {
+            let val = parseFloat((config.dwellTime + delta).toFixed(1));
+            if (val < 0.1) val = 0.1;
+            if (val > 5.0) val = 5.0;
+            document.getElementById('dwellInput').value = val;
+            updateDwellTime(val);
+        }
+
+        function updateDwellTime(val) {
+            config.dwellTime = parseFloat(val);
+            document.getElementById('dwellVal').innerText = config.dwellTime.toFixed(1) + ' 秒';
+            saveSettings();
+        }
+
+        function stepBallSize(delta) {
+            let val = config.ballSize + delta;
+            if (val < 80) val = 80;
+            if (val > 450) val = 450;
+            document.getElementById('ballSizeInput').value = val;
+            updateBallSize(val);
+        }
+
+        function updateBallSize(val) {
+            config.ballSize = parseInt(val);
+            document.getElementById('ballSizeVal').innerText = val + ' px';
+            applyBallDimensions();
+            saveSettings();
+        }
+
+        function stepMoveSpeed(delta) {
+            let val = parseFloat((config.moveSpeed + delta).toFixed(1));
+            if (val < 1.0) val = 1.0;
+            if (val > 7.0) val = 7.0;
+            document.getElementById('moveSpeedInput').value = val;
+            updateMoveSpeed(val);
+        }
+
+        function updateMoveSpeed(val) {
+            config.moveSpeed = parseFloat(val);
+            let speedText = "適中";
+            if (config.moveSpeed <= 1.5) speedText = "快速";
+            else if (config.moveSpeed >= 5.0) speedText = "慢速";
+            document.getElementById('moveSpeedVal').innerText = `${speedText} (${val}s)`;
+            saveSettings();
+        }
+
+        function stepVolume(delta) {
+            let val = Math.round(config.volume * 100) + delta;
+            if (val < 0) val = 0;
+            if (val > 100) val = 100;
+            document.getElementById('volumeInput').value = val;
+            updateVolume(val);
+        }
+
+        function updateVolume(val) {
+            config.volume = parseInt(val) / 100;
+            document.getElementById('volumeVal').innerText = val + '%';
+            saveSettings();
+        }
+
+        function toggleRing(checked) {
+            config.showRing = checked;
+            saveSettings();
+        }
+
+        function applyBallDimensions() {
+            const size = config.ballSize;
+            ballContainer.style.width = size + 'px';
+            ballContainer.style.height = size + 'px';
+            ballIcon.style.fontSize = (size * 0.75) + 'px';
+        }
+
+        function openSettings() {
+            clearInterval(gameState.gameCountdownInterval);
+            settingsModal.classList.remove('hidden');
+            settlementModal.classList.add('hidden');
+            cancelDwellTimer();
+            stopLevel3Movement();
+        }
+
+        function closeSettings() {
+            settingsModal.classList.add('hidden');
+            launchLevel(gameState.currentLevel);
+        }
+
+        function saveSettings() {
+            try {
+                localStorage.setItem('cvi_basketball_config', JSON.stringify(config));
+            } catch(e) {
+                console.warn('LocalStorage quota exceeded.');
+            }
+        }
+
+        function loadSettings() {
+            try {
+                const saved = localStorage.getItem('cvi_basketball_config');
+                if (saved) {
+                    config = { ...config, ...JSON.parse(saved) };
+                    document.getElementById('ballSizeInput').value = config.ballSize;
+                    document.getElementById('ballSizeVal').innerText = config.ballSize + ' px';
+                    
+                    document.getElementById('dwellInput').value = config.dwellTime;
+                    document.getElementById('dwellVal').innerText = parseFloat(config.dwellTime).toFixed(1) + ' 秒';
+                    
+                    if (config.timeLimit !== undefined) {
+                        document.getElementById('timeLimitSelect').value = config.timeLimit;
+                    }
+
+                    if (config.moveSpeed) {
+                        document.getElementById('moveSpeedInput').value = config.moveSpeed;
+                        updateMoveSpeed(config.moveSpeed);
+                    }
+                    
+                    document.getElementById('volumeInput').value = Math.round(config.volume * 100);
+                    document.getElementById('volumeVal').innerText = Math.round(config.volume * 100) + '%';
+                    document.getElementById('showRingToggle').checked = config.showRing;
+                }
+            } catch(e) {}
+            
+            updateBackgroundUI();
+            setBallStyle(config.ballStyle);
+            applyBallDimensions();
+        }
+
+        // ==========================================
+        // 4. 關卡與遊戲計時邏輯
+        // ==========================================
+        function launchLevel(level) {
+            initAudio();
+            gameState.currentLevel = level;
+            gameState.score = 0;
+            updateScoreUI();
+
+            settingsModal.classList.add('hidden');
+            settlementModal.classList.add('hidden');
+            
+            stopLevel3Movement();
+            cancelDwellTimer();
+            clearInterval(gameState.gameCountdownInterval);
+
+            ballContainer.style.transition = '';
+            ballElement.classList.remove('anim-bounce', 'anim-shoot');
+            svgNetGroup.classList.remove('anim-net-swish');
+
+            if (level === 1) {
+                levelIndicatorText.innerText = "第一關：原地拍球";
+                hoopContainer.classList.add('hidden');
+                ballContainer.style.top = '50%';
+                ballContainer.style.left = '50%';
+                ballContainer.style.transform = 'translate(-50%, -50%)';
+            } else if (level === 2) {
+                levelIndicatorText.innerText = "第二關：靜態投籃";
+                hoopContainer.classList.remove('hidden');
+                ballContainer.style.top = '82%';
+                ballContainer.style.left = '50%';
+                ballContainer.style.transform = 'translate(-50%, -50%)';
+            } else if (level === 3) {
+                levelIndicatorText.innerText = "第三關：擺動投籃";
+                hoopContainer.classList.remove('hidden');
+                ballContainer.style.top = '82%';
+                startLevel3Movement();
+            }
+            gameState.isAnimating = false;
+
+            startCountdownTimer();
+        }
+
+        function restartCurrentLevel() {
+            launchLevel(gameState.currentLevel);
+        }
+
+        function startCountdownTimer() {
+            clearInterval(gameState.gameCountdownInterval);
+            
+            if (config.timeLimit > 0) {
+                gameState.remainingSeconds = config.timeLimit;
+                gameState.isTimerActive = true;
+                updateTimerUI();
+
+                gameState.gameCountdownInterval = setInterval(() => {
+                    gameState.remainingSeconds--;
+                    updateTimerUI();
+
+                    if (gameState.remainingSeconds <= 0) {
+                        endGameSession();
+                    }
+                }, 1000);
+            } else {
+                gameState.isTimerActive = false;
+                timerText.innerText = "無限時";
+            }
+        }
+
+        function updateTimerUI() {
+            if (config.timeLimit > 0) {
+                timerText.innerText = gameState.remainingSeconds + "s";
+            } else {
+                timerText.innerText = "無限時";
+            }
+        }
+
+        function updateScoreUI() {
+            scoreText.innerText = gameState.score + " 次";
+        }
+
+        function endGameSession() {
+            clearInterval(gameState.gameCountdownInterval);
+            cancelDwellTimer();
+            stopLevel3Movement();
+
+            playFanfareSound();
+
+            const levelNames = ["", "第一關：原地拍球", "第二關：靜態投籃", "第三關：擺動投籃"];
+            document.getElementById('settlementLevelText').innerText = levelNames[gameState.currentLevel];
+            document.getElementById('settlementScore').innerText = gameState.score;
+
+            settlementModal.classList.remove('hidden');
+        }
+
+        // 第三關：擺動引擎
+        function startLevel3Movement() {
+            stopLevel3Movement();
+            gameState.moveStartTime = performance.now();
+
+            function animateMovement(now) {
+                if (gameState.isAnimating) return;
+
+                const elapsed = (now - gameState.moveStartTime) / 1000;
+                const period = config.moveSpeed;
+                
+                const progress = (Math.sin((elapsed / period) * Math.PI * 2 - Math.PI / 2) + 1) / 2;
+                const minX = 18;
+                const maxX = 82;
+                const currentX = minX + progress * (maxX - minX);
+
+                gameState.currentBallPercentX = currentX;
+                ballContainer.style.left = currentX + '%';
+                ballContainer.style.transform = 'translate(-50%, -50%)';
+
+                gameState.moveLoopFrame = requestAnimationFrame(animateMovement);
+            }
+
+            gameState.moveLoopFrame = requestAnimationFrame(animateMovement);
+        }
+
+        function stopLevel3Movement() {
+            if (gameState.moveLoopFrame) {
+                cancelAnimationFrame(gameState.moveLoopFrame);
+                gameState.moveLoopFrame = null;
+            }
+        }
+
+        // 觸發動作
+        function triggerAction() {
+            if (gameState.isAnimating) return;
+            gameState.isAnimating = true;
+            cancelDwellTimer();
+
+            gameState.score++;
+            updateScoreUI();
+
+            if (gameState.currentLevel === 1) {
+                playBounceSound();
+                ballElement.classList.add('anim-bounce');
+
+                setTimeout(() => {
+                    ballElement.classList.remove('anim-bounce');
+                    gameState.isAnimating = false;
+                }, 520);
+
+            } else if (gameState.currentLevel === 2) {
+                playBounceSound();
+                ballElement.classList.add('anim-shoot');
+
+                setTimeout(() => {
+                    playSwishSound();
+                    svgNetGroup.classList.add('anim-net-swish');
+                }, 850);
+
+                setTimeout(() => {
+                    playFanfareSound();
+                }, 1000);
+
+                setTimeout(() => {
+                    ballElement.classList.remove('anim-shoot');
+                    svgNetGroup.classList.remove('anim-net-swish');
+                    gameState.isAnimating = false;
+                }, 2100);
+
+            } else if (gameState.currentLevel === 3) {
+                stopLevel3Movement();
+                playBounceSound();
+
+                const startPercentX = gameState.currentBallPercentX;
+                const deltaXPercent = 50 - startPercentX;
+
+                ballContainer.style.transition = 'all 1.1s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                ballContainer.style.transform = `translate(calc(-50% + ${deltaXPercent}vw), -58vh) scale(0.55) rotate(360deg)`;
+
+                setTimeout(() => {
+                    playSwishSound();
+                    svgNetGroup.classList.add('anim-net-swish');
+                }, 850);
+
+                setTimeout(() => {
+                    playFanfareSound();
+                }, 1050);
+
+                setTimeout(() => {
+                    ballContainer.style.transition = '';
+                    ballContainer.style.transform = 'translate(-50%, -50%)';
+                    svgNetGroup.classList.remove('anim-net-swish');
+                    gameState.isAnimating = false;
+                    
+                    startLevel3Movement();
+                }, 2200);
+            }
+        }
+
+        // ==========================================
+        // 5. 眼動儀與 iPad 觸控監聽
+        // ==========================================
+        const circleCircumference = 289;
+
+        function startDwellTimer() {
+            if (gameState.isAnimating) return;
+            cancelDwellTimer();
+
+            gameState.dwellStartTime = Date.now();
+            const duration = config.dwellTime * 1000;
+
+            if (config.showRing) {
+                dwellSvg.classList.remove('hidden');
+                dwellProgress.style.strokeDashoffset = circleCircumference;
+                
+                function updateRing() {
+                    const elapsed = Date.now() - gameState.dwellStartTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    const offset = circleCircumference - (progress * circleCircumference);
+                    dwellProgress.style.strokeDashoffset = offset;
+
+                    if (progress < 1) {
+                        gameState.dwellAnimFrame = requestAnimationFrame(updateRing);
+                    }
+                }
+                gameState.dwellAnimFrame = requestAnimationFrame(updateRing);
+            }
+
+            gameState.dwellTimer = setTimeout(() => {
+                triggerAction();
+            }, duration);
+        }
+
+        function cancelDwellTimer() {
+            if (gameState.dwellTimer) {
+                clearTimeout(gameState.dwellTimer);
+                gameState.dwellTimer = null;
+            }
+            if (gameState.dwellAnimFrame) {
+                cancelAnimationFrame(gameState.dwellAnimFrame);
+                gameState.dwellAnimFrame = null;
+            }
+            dwellSvg.classList.add('hidden');
+            dwellProgress.style.strokeDashoffset = circleCircumference;
+        }
+
+        // 眼動儀懸停
+        ballContainer.addEventListener('pointerenter', (e) => {
+            if (e.pointerType === 'mouse' || e.pointerType === 'pen') {
+                startDwellTimer();
+            }
+        });
+
+        ballContainer.addEventListener('pointerleave', () => {
+            cancelDwellTimer();
+        });
+
+        // iPad 觸控直接點擊
+        ballContainer.addEventListener('pointerdown', (e) => {
+            initAudio();
+            cancelDwellTimer();
+            triggerAction();
+        });
+
+        // 阻止 iOS Safari 多餘滾動
+        document.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+
+        // 初始化
+        window.onload = function() {
+            loadSettings();
+            launchLevel(1);
+        };
+
+    </script>
+</body>
+</html>
